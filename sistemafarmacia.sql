@@ -306,3 +306,181 @@ FROM 'usuario_faramacia'@'localhost';
 --Excluir usuário
 DROP USER 'usuario_farmacia'@'localhost';
 
+-- procedure: listar produtos de uma farmácia
+DELIMITER $$
+
+CREATE PROCEDURE listar_produtos_farmaica (IN cnpjFarm VARCHAR(14))
+BEGIN
+  SELECT codproduto,quantproduto,valorproduto
+  FROM produto
+  WHERE cnpj_farmacia = cnpjFarm;
+END $$
+
+DELIMITER;
+
+--executando o procedure =procedimento
+
+CALL listar_produtos_farmaica('12345678000199')
+
+--procedure: atualizar_valor_produto
+
+DELIMITER $$
+
+CREATE PROCEDURE atualizar_valor_produto(
+    IN p_cod INT,
+    IN p_valor DECIMAL(10,2)
+)
+BEGIN
+ UPDATE produto
+ SET valorproduto = p_valor
+ WHERE codproduto = p_cod;
+END$$
+
+DELIMITER$$
+
+-- Executando o  pocedure acima 
+CALL atualizar_valor_produto (1, 19.90);
+
+-- function: calcular o valor total em estoque
+DELIMITER $$
+
+CREATE FUNCTION valor_total_produto(p_cod INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN 
+  DECLARE total DECIMAL (10,2);
+
+  SELECT quantproduto * valorproduto 
+  INTO total
+  FROM produto
+  WHERE codproduto = p_cod;
+
+  RETURN total;
+END $$
+
+DELIMITER ;  
+
+--usando a fução acima
+SELECT valor_total_produto(1) AS total_em_estoque;
+
+-- Function: quatidade de produto por farmcía
+DELIMITER $$
+ 
+CREATE FUNCTION qtd_produtos_farmacia(p_cnpj VARCHAR(14))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE total INT;
+ 
+    SELECT COUNT(*)
+    INTO total
+    FROM produto
+    WHERE cnpj_farmacia = p_cnpj;
+ 
+    RETURN total;
+END$$
+ 
+DELIMITER ;
+
+
+-- executando a funçao acima
+SELECT qtd_produtos_farmacia('12345678000199')
+
+-- Function de soma
+DELIMITER $$
+
+DROP FUNCTION IF EXISTS qtd_produtos_farmacia
+
+CREATE FUNCTION qtd_produtos_farmacia(p_cnpj VARCHAR(14))
+RETURNS INT
+DETERMINISTIC
+BEGIN 
+   DECLARE total INT;
+
+   SELECT SUM(quantproduto)
+   INTO Total
+   FROM produto
+   WHERE cnpj_farmacia = p_cnpj;
+
+  RETURN Total;
+END;
+
+DELIMITER ;
+
+-- testando a funçao acima 
+SELECT qtd_produtos_farmacia('12345678000199') AS total_em_estoque
+
+-- trigger: impedir quantidade negativa (BEFORE INSERT)
+DELIMITER $$ 
+
+CREATE TRIGGER trg_before_insert_produto
+BEFORE INSERT ON produto
+FOR EACH ROW
+BEGIN
+  IF NEW.quantproduto < 0 THEN
+     SET NEW.quantproduto = 0;
+    END IF; 
+ END$$
+
+  DELIMITER ;
+
+  -- Tentando inserir um valor negativo 
+  INSERT INTO produto (quantproduto, valorproduto, cnpj_farmacia)
+  VALUES (-10, 20.00, '12345678000199');
+
+--Trigger: impedir valor negativo (BEFORE UPDATE)
+DELIMITER $$ 
+
+CREATE TRIGGER trg_before_update_produto
+BEFORE UPDATE ON produto
+FOR EACH ROW
+BEGIN
+  IF NEW.quantproduto < 0 THEN
+     SET NEW.quantproduto = OLD.valorproduto;
+    END IF; 
+ END$$
+
+  DELIMITER ;
+
+-- testando o código acima
+UPDATE produto
+SET valorproduto = -25.00
+WHERE codproduto = 1;
+
+-- View : farmacia + produto
+CREATE VIEW vw_farmacia_produto AS
+SELECT 
+    f.nomefarmacia,
+    f.cidade,
+    p.codproduto,
+    p.quantproduto,
+    p.valorproduto
+  FROM farmacia f 
+  INNER JOIN produto p
+  ON f.cnpj = p.cnpj_farmacia;
+
+--testando o codigo acima
+SELECT * FROM vw_farmacia_produto;
+
+-- View : farmacia + farmaceutico
+CREATE VIEW vw_farmaceutico_farmacia AS
+SELECT 
+    fa.nomefarmacia,
+    fa.cidade,
+    fm.nomefarmaceutico
+  FROM farmacia fa 
+  INNER JOIN farmaceutico fm
+  ON fa.cnpj = fm.cnpj_farmacia;
+
+  --criando uma nova view
+  
+  CREATE VIEW vw_produto_caros AS 
+  SELECT * 
+  FROM produto
+  WHERE valorproduto > 30;
+
+
+
+
+
+
